@@ -17,6 +17,7 @@ import {
   Printer,
   RefreshCw,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 
 import DashboardSidebar from "@/app/components/dashboard/DashboardSidebar";
@@ -149,6 +150,53 @@ export default function DailyEditionPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [skippedArticleUrls, setSkippedArticleUrls] = useState<string[]>([]);
+  const [hydratedEditionId, setHydratedEditionId] = useState<string | null>(null);
+
+  // Store dismissals per edition so skipping today's story doesn't hide it in a future edition.
+  useEffect(() => {
+    if (!edition) return;
+
+    try {
+      const stored = window.localStorage.getItem(
+        `paperly:skipped-edition-articles:${edition._id}`,
+      );
+      if (stored) {
+        const parsed: unknown = JSON.parse(stored);
+        setSkippedArticleUrls(
+          Array.isArray(parsed)
+            ? parsed.filter((value): value is string => typeof value === "string")
+            : [],
+        );
+      } else {
+        setSkippedArticleUrls([]);
+      }
+    } catch {
+      // Storage may be disabled; skipping still works for the current session.
+      setSkippedArticleUrls([]);
+    } finally {
+      setHydratedEditionId(edition._id);
+    }
+  }, [edition]);
+
+  useEffect(() => {
+    if (!edition || hydratedEditionId !== edition._id) return;
+
+    try {
+      window.localStorage.setItem(
+        `paperly:skipped-edition-articles:${edition._id}`,
+        JSON.stringify(skippedArticleUrls),
+      );
+    } catch {
+      // Ignore storage quota/privacy errors; in-memory state remains functional.
+    }
+  }, [edition, hydratedEditionId, skippedArticleUrls]);
+
+  const skipArticle = useCallback((url: string) => {
+    setSkippedArticleUrls((current) =>
+      current.includes(url) ? current : [...current, url],
+    );
+  }, []);
 
   const loadEdition = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
@@ -206,14 +254,19 @@ export default function DailyEditionPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [sidebarOpen]);
 
+  const visibleArticles = useMemo(
+    () => edition?.articles.filter((article) => !skippedArticleUrls.includes(article.url)) ?? [],
+    [edition, skippedArticleUrls],
+  );
+
   const sections = useMemo(() => {
     if (!edition) return [];
 
     const grouped = new Map<string, Article[]>();
 
-    // The first article is presented separately as the editor's lead.
-    // Exclude it from the section lists so it isn't repeated below.
-    for (const article of edition.articles.slice(1)) {
+    // The first visible article is presented separately as the editor's lead.
+    // Exclude it from section lists so it isn't repeated below.
+    for (const article of visibleArticles.slice(1)) {
       const category = article.category || "Top Stories";
       const items = grouped.get(category) ?? [];
       items.push(article);
@@ -221,9 +274,9 @@ export default function DailyEditionPage() {
     }
 
     return Array.from(grouped.entries());
-  }, [edition]);
+  }, [edition, visibleArticles]);
 
-  const leadArticle = edition?.articles[0];
+  const leadArticle = visibleArticles[0];
 
   return (
     <div className="paperly-reader min-h-screen bg-[#eef1f9] text-slate-800">
@@ -363,7 +416,7 @@ export default function DailyEditionPage() {
                     <div className="reader-inset rounded-2xl p-4">
                       <p className="text-xs font-medium text-slate-500">Stories</p>
                       <p className="mt-1 text-3xl font-black text-slate-800">
-                        {edition.articles.length}
+                        {visibleArticles.length}
                       </p>
                     </div>
                     <div className="reader-inset rounded-2xl p-4">
@@ -396,9 +449,20 @@ export default function DailyEditionPage() {
 
               {leadArticle && (
                 <section className="reader-lead mt-6 rounded-[28px] p-5 sm:p-9 lg:p-11">
-                  <div className="mb-6 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">
-                    <Sparkles size={15} />
-                    Editor&apos;s lead
+                  <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">
+                      <Sparkles size={15} />
+                      Editor&apos;s lead
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => skipArticle(leadArticle.url)}
+                      aria-label={`Skip story: ${leadArticle.title}`}
+                      className="no-print reader-skip inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-rose-600 transition hover:text-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+                    >
+                      <Trash2 size={15} />
+                      Skip story
+                    </button>
                   </div>
 
                   <EditorialImage article={leadArticle} featured />
@@ -467,9 +531,21 @@ export default function DailyEditionPage() {
                             <span className="reader-category rounded-full px-3 py-1.5 text-[11px] font-bold text-indigo-700">
                               {article.category}
                             </span>
-                            <span className="text-[10px] font-medium text-slate-400">
-                              {String(index + 1).padStart(2, "0")}
-                            </span>
+                            <div className="no-print flex items-center gap-2">
+                              <span className="text-[10px] font-medium text-slate-400">
+                                {String(index + 1).padStart(2, "0")}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => skipArticle(article.url)}
+                                aria-label={`Skip story: ${article.title}`}
+                                title="Skip this story"
+                                className="reader-skip inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-rose-600 transition hover:text-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+                              >
+                                <Trash2 size={14} />
+                                <span>Skip</span>
+                              </button>
+                            </div>
                           </div>
 
                           <h3 className="mt-4 font-serif text-xl font-bold leading-snug text-slate-900">
@@ -620,6 +696,16 @@ export default function DailyEditionPage() {
 
         .reader-story-link {
           text-decoration: none;
+        }
+
+        .reader-skip {
+          border: 1px solid rgba(244, 63, 94, 0.16);
+          background: linear-gradient(145deg, #fff7f8, #ffeef1);
+          box-shadow: 3px 3px 7px #e1d5dc, -3px -3px 7px #ffffff;
+        }
+
+        .reader-skip:hover {
+          background: #fff0f2;
         }
 
         .edition-image {
