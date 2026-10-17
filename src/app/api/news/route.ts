@@ -1,14 +1,20 @@
+
 import { NextResponse, connection } from "next/server";
 import { getServerSession } from "next-auth";
+
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import User from "@/models/User";
 import { fetchNews, personalizeNews } from "@/lib/news";
 
-export async function GET(request: Request) {
+
+export async function GET() {
   try {
-    const requestUrl = new URL(request.url);
+    await connection();
+
     const session = await getServerSession(authOptions);
+
+    // Keep the rest of your existing handler unchanged.
 
     if (!session?.user?.id) {
       return NextResponse.json(

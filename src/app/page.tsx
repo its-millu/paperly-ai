@@ -119,7 +119,7 @@ export default function HomePage() {
           <Link href="/login" className="nav-login">
             Log in
           </Link>
-          <Link href="/get-started" className="button button-small">
+          <Link href="/login" className="button button-small">
             Get started <span>↗</span>
           </Link>
         </div>
@@ -144,7 +144,7 @@ export default function HomePage() {
           </p>
 
           <div className="hero-actions">
-            <Link href="/get-started" className="button">
+            <Link href="/login" className="button">
               Create my newspaper <span>↗</span>
             </Link>
             <a href="#how-it-works" className="text-button">
@@ -288,7 +288,7 @@ export default function HomePage() {
             experience, helping you spend more time understanding what
             matters and less time searching for it.
           </p>
-          <Link href="/get-started" className="inline-link">
+          <Link href="/login" className="inline-link">
             Find your perspective <span>↗</span>
           </Link>
         </div>
@@ -334,7 +334,7 @@ export default function HomePage() {
             No complicated setup. Just your interests, your edition, and a
             more considered way to read.
           </p>
-          <Link href="/get-started" className="button">
+          <Link href="/login" className="button">
             Build my edition <span>↗</span>
           </Link>
         </div>
@@ -396,7 +396,7 @@ export default function HomePage() {
             Your preferences can help guide a more relevant selection of
             stories over time.
           </p>
-          <Link href="/get-started" className="inline-link">
+          <Link href="/login" className="inline-link">
             Make it personal <span>↗</span>
           </Link>
         </div>
@@ -422,7 +422,7 @@ export default function HomePage() {
             <li><span>✓</span> Support for a downloadable edition</li>
           </ul>
 
-          <Link href="/get-started" className="button">
+          <Link href="/login" className="button">
             Start reading smarter <span>↗</span>
           </Link>
         </div>
@@ -503,7 +503,7 @@ export default function HomePage() {
           Make space for the stories that matter to you.
           Start building a more thoughtful reading habit today.
         </p>
-        <Link href="/get-started" className="button final-button">
+        <Link href="/login" className="button final-button">
           Create my newspaper <span>↗</span>
         </Link>
         <span className="final-note">YOUR WORLD. YOUR DAILY PAPER.</span>
@@ -523,7 +523,7 @@ export default function HomePage() {
           <a href="#features">Features</a>
           <a href="#how-it-works">How it works</a>
           <Link href="/login">Log in</Link>
-          <Link href="/get-started">Get started</Link>
+          <Link href="/login">Get started</Link>
         </nav>
 
         <span className="copyright">© 2026 PAPERLY AI</span>

@@ -1,4 +1,3 @@
-
 import Parser from "rss-parser";
 
 const parser = new Parser({
@@ -6,6 +5,10 @@ const parser = new Parser({
   headers: {
     "User-Agent": "PaperlyAI/1.0 RSS Reader",
     Accept: "application/rss+xml, application/xml, text/xml",
+  },
+  // Preserve common publisher image metadata instead of dropping it.
+  customFields: {
+    item: ["media:content", "media:thumbnail", "image"],
   },
 });
 
@@ -40,7 +43,18 @@ export type NewsArticle = {
   source: string;
   category: string;
   publishedAt: string | null;
+  imageUrl?: string | null;
 };
+
+type UnknownRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): UnknownRecord | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as UnknownRecord;
+  }
+
+  return null;
+}
 
 function normalizeText(value: string) {
   return value
@@ -62,6 +76,124 @@ function isSafeArticleUrl(value: string | undefined): value is string {
   } catch {
     return false;
   }
+}
+
+function normalizeImageUrl(value: unknown, baseUrl: string): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  try {
+    const resolved = new URL(value.trim(), baseUrl);
+
+    if (resolved.protocol !== "https:" && resolved.protocol !== "http:") {
+      return null;
+    }
+
+    return resolved.toString();
+  } catch {
+    return null;
+  }
+}
+
+function imageFromHtml(value: unknown, baseUrl: string): string | null {
+  if (typeof value !== "string" || !value) return null;
+
+  // RSS content often contains an img tag. Check src, data-src and srcset.
+  const patterns = [
+    /<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/i,
+    /<img\b[^>]*?\bdata-src\s*=\s*["']([^"']+)["']/i,
+    /<img\b[^>]*?\bsrcset\s*=\s*["']([^"']+)["']/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = value.match(pattern);
+    if (!match?.[1]) continue;
+
+    // For srcset, use the first candidate's URL.
+    const candidate = match[1].split(",")[0].trim().split(/\s+/)[0];
+    const safeUrl = normalizeImageUrl(candidate, baseUrl);
+    if (safeUrl) return safeUrl;
+  }
+
+  return null;
+}
+
+function imageFromMetadata(value: unknown, baseUrl: string): string | null {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const found = imageFromMetadata(entry, baseUrl);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return normalizeImageUrl(value, baseUrl);
+  }
+
+  const record = asRecord(value);
+  if (!record) return null;
+
+  // rss-parser represents media:content, media:thumbnail and enclosure
+  // attributes differently depending on the feed's XML structure.
+  const attributes = asRecord(record.$);
+  const candidates = [
+    record.url,
+    record.href,
+    record.src,
+    attributes?.url,
+    attributes?.href,
+    record["@_url"],
+  ];
+
+  for (const candidate of candidates) {
+    const safeUrl = normalizeImageUrl(candidate, baseUrl);
+    if (safeUrl) return safeUrl;
+  }
+
+  return null;
+}
+
+function extractImageUrl(
+  item: UnknownRecord,
+  baseUrl: string,
+): string | null {
+  const enclosure = asRecord(item.enclosure);
+  const mediaContent = item["media:content"] ?? item.mediaContent;
+  const mediaThumbnail = item["media:thumbnail"] ?? item.mediaThumbnail;
+  const imageField = item.image;
+
+  // Prefer explicit image metadata first.
+  const candidates: unknown[] = [
+    enclosure?.type && typeof enclosure.type === "string" &&
+    !enclosure.type.startsWith("image/")
+      ? null
+      : enclosure?.url,
+    imageFromMetadata(mediaThumbnail, baseUrl),
+    imageFromMetadata(mediaContent, baseUrl),
+    imageFromMetadata(imageField, baseUrl),
+    item["itunes:image"],
+    item.itunesImage,
+  ];
+
+  for (const candidate of candidates) {
+    const safeUrl = normalizeImageUrl(candidate, baseUrl);
+    if (safeUrl) return safeUrl;
+  }
+
+  // Then inspect RSS HTML fields, which may contain an image tag.
+  const htmlFields = [
+    item["content:encoded"],
+    item.content,
+    item.summary,
+    item.description,
+  ];
+
+  for (const field of htmlFields) {
+    const found = imageFromHtml(field, baseUrl);
+    if (found) return found;
+  }
+
+  return null;
 }
 
 export async function fetchNews(): Promise<NewsArticle[]> {
@@ -86,6 +218,7 @@ export async function fetchNews(): Promise<NewsArticle[]> {
       return parsed.items
         .filter((item) => isSafeArticleUrl(item.link))
         .map((item): NewsArticle => {
+          const rawItem = item as unknown as UnknownRecord;
           const title = normalizeText(item.title || "Untitled story");
           const url = item.link!;
           const summary = normalizeText(
@@ -94,6 +227,7 @@ export async function fetchNews(): Promise<NewsArticle[]> {
 
           const parsedDate = item.isoDate || item.pubDate;
           const timestamp = parsedDate ? Date.parse(parsedDate) : NaN;
+          const imageUrl = extractImageUrl(rawItem, url);
 
           return {
             id: url,
@@ -105,6 +239,7 @@ export async function fetchNews(): Promise<NewsArticle[]> {
             publishedAt: Number.isFinite(timestamp)
               ? new Date(timestamp).toISOString()
               : null,
+            imageUrl,
           };
         });
     }),

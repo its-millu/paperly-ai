@@ -18,7 +18,7 @@ import {
 const navigation = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Discover", href: "/dashboard/discover", icon: Compass },
-  { label: "My Briefing", href: "/dashboard/briefing", icon: FileText },
+  { label: "Daily Edition", href: "/dashboard/edition", icon: FileText },
   { label: "Saved Articles", href: "/dashboard/saved", icon: Bookmark },
   { label: "Reading History", href: "/dashboard/history", icon: Clock3 },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
