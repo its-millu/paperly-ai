@@ -14,11 +14,13 @@ import {
   X,
   ArrowUpRight,
 } from "lucide-react";
+import { History } from "lucide-react";
 
 const navigation = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Discover", href: "/dashboard/discover", icon: Compass },
-  { label: "Daily Edition", href: "/dashboard/edition", icon: FileText },
+  { label: "Daily Editions", href: "/dashboard/edition", icon: FileText },
+  { label: "Previous Day", href: "/dashboard/previous-editions", icon: History },
   { label: "Saved Articles", href: "/dashboard/saved", icon: Bookmark },
   { label: "Reading History", href: "/dashboard/history", icon: Clock3 },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
