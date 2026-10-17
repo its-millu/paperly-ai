@@ -199,18 +199,28 @@ export async function GET() {
 
     const savedEdition = await attachBriefing({
       _id: edition._id,
-      articles: edition.articles.map((article) => {
-        const item = (
-  article as unknown as {
-    toObject: () => Record<string, unknown>;
-  }
-).toObject();
-        return {
-          ...item,
-          publishedAt: item.publishedAt ?? null,
-          imageUrl: item.imageUrl ?? null,
-        };
-      }),
+     articles: edition.articles.map((article) => {
+  const item = (
+    article as unknown as {
+      toObject: () => Record<string, unknown>;
+    }
+  ).toObject();
+
+  return {
+    id: String(item.id ?? item._id ?? ""),
+    title: String(item.title ?? ""),
+    summary: String(item.summary ?? ""),
+    url: String(item.url ?? ""),
+    source: String(item.source ?? ""),
+    category: String(item.category ?? ""),
+    publishedAt: item.publishedAt
+      ? new Date(
+          item.publishedAt as string | number | Date
+        ).toISOString()
+      : null,
+    imageUrl: item.imageUrl ? String(item.imageUrl) : null,
+  };
+}),
       interests: edition.interests ?? [],
     });
 
