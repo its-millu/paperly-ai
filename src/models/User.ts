@@ -8,12 +8,26 @@ export interface IUserPreferences {
   onboardingCompleted: boolean;
 }
 
+export type SubscriptionPlan = "free" | "plus" | "pro";
+
+export type SubscriptionStatus =
+  | "inactive"
+  | "active"
+  | "past_due"
+  | "canceled";
+
 export interface IUser {
   firstName: string;
   lastName?: string;
   email: string;
   passwordHash: string;
   preferences?: IUserPreferences;
+
+  // Subscription and AI summary quota
+  plan?: SubscriptionPlan;
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionExpiresAt?: Date | null;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,6 +86,22 @@ const UserSchema = new Schema<IUser>(
     preferences: {
       type: UserPreferencesSchema,
       default: () => ({}),
+    },
+
+    // All new users start on the Free plan.
+    plan: {
+      type: String,
+      enum: ["free", "plus", "pro"],
+      default: "free",
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: ["inactive", "active", "past_due", "canceled"],
+      default: "inactive",
+    },
+    subscriptionExpiresAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true },
