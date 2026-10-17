@@ -28,10 +28,13 @@ export async function connectToDatabase() {
   }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      dbName: process.env.MONGODB_DB_NAME || "paperly",
-      serverSelectionTimeoutMS: 10000,
-    });
+    cached.promise = mongoose.connect(
+  MONGODB_URI as string,
+  {
+    dbName: process.env.MONGODB_DB_NAME || "paperly",
+    serverSelectionTimeoutMS: 10000,
+  }
+);
   }
 
   try {
