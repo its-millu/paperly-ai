@@ -16,6 +16,8 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
+import SaveArticleButton from "@/app/components/dashboard/SaveArticleButton";
+
 type Article = {
   id: string;
   title: string;
@@ -395,15 +397,19 @@ export default function DashboardContent() {
                 className="paperly-news-card group flex min-w-0 flex-col overflow-hidden rounded-[1.75rem] p-5 sm:p-6"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="paperly-category-badge inline-flex max-w-[65%] items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold text-indigo-700">
-                    <span className="paperly-category-dot" />
-                    <span className="truncate">{article.category}</span>
-                  </span>
+  <div className="flex min-w-0 flex-wrap items-center gap-2">
+    <span className="paperly-category-badge inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold text-indigo-700">
+      <span className="paperly-category-dot" />
+      <span className="truncate">{article.category}</span>
+    </span>
 
-                  <span className="shrink-0 pt-1 text-right text-[10px] font-medium text-slate-400">
-                    {formatDate(article.publishedAt)}
-                  </span>
-                </div>
+    <span className="text-[10px] font-medium text-slate-400">
+      {formatDate(article.publishedAt)}
+    </span>
+  </div>
+
+  <SaveArticleButton article={article} />
+</div>
 
                 <h3 className="mt-5 text-lg font-extrabold leading-snug tracking-tight text-slate-800 transition-colors duration-300 group-hover:text-indigo-700">
                   {article.title}

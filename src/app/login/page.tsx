@@ -124,17 +124,19 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
       return;
     }
 
-    const result = await signIn("credentials", {
-      email: email.trim().toLowerCase(),
-      password,
-      redirect: false,
-      callbackUrl: "/dashboard",
-    });
+   const result = await signIn("credentials", {
+  email: email.trim().toLowerCase(),
+  password,
+  redirect: false,
+  callbackUrl: "/onboarding",
+});
 
-    if (!result || result.error) {
-      setError("Invalid email or password.");
-      return;
-    }
+if (!result || result.error) {
+  setError("Invalid email or password.");
+  return;
+}
+
+window.location.assign(result.url || "/onboarding");
 
     router.push(result.url || "/dashboard");
     router.refresh();
