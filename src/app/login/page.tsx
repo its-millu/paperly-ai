@@ -347,7 +347,6 @@ window.location.assign(result.url || "/onboarding");
                       className="auth-text-action"
                       onClick={() => changeMode("forgot")}
                     >
-                      Forgot password?
                     </button>
                   )}
                 </div>

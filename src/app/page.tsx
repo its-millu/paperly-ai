@@ -165,13 +165,13 @@ export default function HomePage() {
           <div className="art-halo art-halo-one" />
           <div className="art-halo art-halo-two" />
 
-          <div className="floating-pill floating-pill-top">
-            <span className="pill-symbol">✳</span>
-            <span>
-              <strong>Made for you</strong>
-              <small>Personalized reading</small>
-            </span>
-          </div>
+          <div className="floating-pill floating-pill-top hide-on-mobile">
+  <span className="pill-symbol">✳</span>
+  <span>
+    <strong>Made for you</strong>
+    <small>Personalized reading</small>
+  </span>
+</div>
 
           <article className="newspaper">
             <div className="newspaper-meta">
@@ -182,7 +182,7 @@ export default function HomePage() {
             </div>
 
             <div className="newspaper-brand">
-              <span>p.</span> the paperly
+              <span>p.</span>paperly
             </div>
 
             <p className="newspaper-date">A MORE THOUGHTFUL MORNING</p>
@@ -230,13 +230,13 @@ export default function HomePage() {
             </div>
           </article>
 
-          <div className="floating-pill floating-pill-bottom">
+          {/* <div className="floating-pill floating-pill-bottom hide-on-mobile">
             <span className="check-icon">✓</span>
             <span>
               <strong>Your daily ritual</strong>
               <small>A little more informed</small>
             </span>
-          </div>
+          </div> */}
 
           <span className="decor-star decor-star-one">✳</span>
           <span className="decor-star decor-star-two">✦</span>
@@ -458,9 +458,9 @@ export default function HomePage() {
             </div>
             <div className="edition-bottom">✳ MADE FOR YOUR CURIOSITY</div>
           </div>
-          <div className="edition-float">
+          {/* <div className="edition-float">
             <span>↓</span> A paper worth keeping
-          </div>
+          </div> */}
         </div>
       </section>
 

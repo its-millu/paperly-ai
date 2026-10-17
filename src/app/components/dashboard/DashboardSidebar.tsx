@@ -162,11 +162,11 @@ export default function DashboardSidebar({ open, onClose }: Props) {
               </p>
 
               <Link
-                href="/dashboard/briefing"
+                href="/dashboard/discover"
                 onClick={onClose}
                 className="paperly-briefing-link mt-4 flex w-full items-center justify-between rounded-xl px-3.5 py-3 text-xs font-bold text-indigo-700 transition-all duration-200"
               >
-                Explore briefing
+                Read News
                 <ArrowUpRight size={15} />
               </Link>
             </div>

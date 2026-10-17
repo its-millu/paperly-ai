@@ -13,8 +13,11 @@ import {
   Sparkles,
   Clock3,
   AlertCircle,
+  Trash2,
   X,
 } from "lucide-react";
+
+import AISummaryButton from "@/app/components/dashboard/AISummaryButton";
 
 import DashboardSidebar from "@/app/components/dashboard/DashboardSidebar";
 import SaveArticleButton from "@/app/components/dashboard/SaveArticleButton";
@@ -127,6 +130,14 @@ export default function DiscoverPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [hiddenArticleUrls, setHiddenArticleUrls] = useState<string[]>([]);
+  const [dismissedArticleUrls, setDismissedArticleUrls] = useState<string[]>([]);
+
+  const dismissArticle = useCallback((url: string) => {
+    setDismissedArticleUrls((current) =>
+      current.includes(url) ? current : [...current, url],
+    );
+  }, []);
 
   const loadNews = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
@@ -196,9 +207,13 @@ export default function DiscoverPage() {
           .toLowerCase()
           .includes(normalizedQuery);
 
-      return matchesCategory && matchesQuery;
+      const alreadySummarized = hiddenArticleUrls.includes(article.url);
+
+      const dismissed = dismissedArticleUrls.includes(article.url);
+
+      return matchesCategory && matchesQuery && !alreadySummarized && !dismissed;
     });
-  }, [articles, selectedCategory, query]);
+  }, [articles, selectedCategory, query, hiddenArticleUrls, dismissedArticleUrls]);
 
   const featuredArticle = filteredArticles[0];
   const remainingArticles = filteredArticles.slice(1);
@@ -440,7 +455,25 @@ export default function DiscoverPage() {
                           <ArrowUpRight size={16} />
                         </a>
                       )}
+                      <AISummaryButton
+                        article={featuredArticle}
+                        onCompleted={(url) => {
+                          setHiddenArticleUrls((current) =>
+                            current.includes(url) ? current : [...current, url],
+                          );
+                        }}
+                      />
                       <SaveArticleButton article={featuredArticle} />
+                      <button
+                        type="button"
+                        onClick={() => dismissArticle(featuredArticle.url)}
+                        aria-label={`Skip story: ${featuredArticle.title}`}
+                        title="Skip this story"
+                        className="discover-control inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                        <span>Skip</span>
+                      </button>
                     </div>
                   </div>
                 </article>
@@ -475,22 +508,47 @@ export default function DiscoverPage() {
                             "Open the original report for the complete story."}
                         </p>
 
-                        <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-200/80 pt-4">
-                          {isSafeUrl(article.url) && (
-                            <a
-                              href={article.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-sm font-bold text-indigo-600 hover:text-indigo-800"
-                            >
-                              Read story
-                              <ArrowUpRight size={15} />
-                            </a>
-                          )}
-                          <div className="ml-auto">
-                            <SaveArticleButton article={article} />
-                          </div>
-                        </div>
+                        
+<div className="mt-5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-slate-200/80 pt-4">
+  <div className="flex min-w-0 flex-wrap items-center gap-2">
+    {isSafeUrl(article.url) && (
+      <a
+        href={article.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex min-w-0 items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 sm:text-sm"
+      >
+        <span>Read story</span>
+        <ArrowUpRight size={14} className="shrink-0" />
+      </a>
+    )}
+
+    <div className="min-w-0 max-w-full">
+      <AISummaryButton
+        article={article}
+        onCompleted={(url) => {
+          setHiddenArticleUrls((current) =>
+            current.includes(url) ? current : [...current, url],
+          );
+        }}
+      />
+    </div>
+  </div>
+
+  <div className="flex shrink-0 items-center gap-2">
+    <SaveArticleButton article={article} />
+    <button
+      type="button"
+      onClick={() => dismissArticle(article.url)}
+      aria-label={`Skip story: ${article.title}`}
+      title="Skip this story"
+      className="discover-control inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
+    >
+      <Trash2 size={16} aria-hidden="true" />
+    </button>
+  </div>
+</div>
+
                       </div>
                     </article>
                   ))}
