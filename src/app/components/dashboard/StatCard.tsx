@@ -18,23 +18,82 @@ export default function StatCard({
   color,
 }: Props) {
   return (
-    <article className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/50">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+    <article className="paperly-stat-card group relative overflow-hidden rounded-[24px] p-5 sm:p-6">
+      {/* Decorative background glow */}
+      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-indigo-200/25 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-60" />
+
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-500">
+            {title}
+          </p>
+
+          <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-800 sm:text-[34px]">
             {value}
           </p>
         </div>
-        <span className={`rounded-xl p-3 ${color}`}>
-          <Icon size={21} />
+
+        <span
+          className={`paperly-stat-icon flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105 ${color}`}
+        >
+          <Icon size={22} strokeWidth={1.9} />
         </span>
       </div>
 
-      <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-500">
-        <ArrowUpRight size={15} className="text-emerald-600" />
-        {detail}
+      <div className="relative mt-5 flex items-center gap-2">
+        <span className="paperly-stat-trend flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-emerald-600">
+          <ArrowUpRight size={15} strokeWidth={2.4} />
+        </span>
+
+        <p className="text-xs font-medium leading-5 text-slate-500">
+          {detail}
+        </p>
       </div>
+
+      <style jsx global>{`
+        .paperly-stat-card {
+          background: linear-gradient(145deg, #f8f9ff 0%, #edf0f9 100%);
+          border: 1px solid rgba(255, 255, 255, 0.92);
+          box-shadow:
+            7px 7px 16px rgba(202, 208, 226, 0.72),
+            -7px -7px 16px rgba(255, 255, 255, 0.96);
+          transition:
+            transform 250ms ease,
+            box-shadow 250ms ease;
+        }
+
+        .paperly-stat-card:hover {
+          transform: translateY(-4px);
+          box-shadow:
+            10px 12px 22px rgba(194, 201, 222, 0.75),
+            -8px -8px 18px rgba(255, 255, 255, 0.98);
+        }
+
+        .paperly-stat-icon {
+          background: linear-gradient(145deg, #f8f9ff, #e9edf8);
+          box-shadow:
+            4px 4px 9px rgba(201, 207, 226, 0.8),
+            -4px -4px 9px rgba(255, 255, 255, 0.95);
+        }
+
+        .paperly-stat-trend {
+          background: linear-gradient(145deg, #f7fff9, #e5f5eb);
+          box-shadow:
+            2px 2px 5px rgba(198, 218, 205, 0.7),
+            -2px -2px 5px rgba(255, 255, 255, 0.95);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .paperly-stat-card,
+          .paperly-stat-icon {
+            transition: none !important;
+          }
+
+          .paperly-stat-card:hover {
+            transform: none;
+          }
+        }
+      `}</style>
     </article>
   );
 }
