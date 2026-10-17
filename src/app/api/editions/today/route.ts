@@ -1,16 +1,66 @@
-
-import { NextResponse } from "next/server";
+import { NextResponse, connection } from "next/server";
 import { getServerSession } from "next-auth";
 import mongoose from "mongoose";
 
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import { fetchNews, personalizeNews } from "@/lib/news";
+import { generateAIBriefing } from "@/lib/ai-briefing";
 import User from "@/models/User";
 import DailyEdition from "@/models/DailyEdition";
 
+function isDuplicateKey(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === 11000
+  );
+}
+
+async function attachBriefing(
+  edition: {
+    _id: mongoose.Types.ObjectId;
+    articles: Array<{
+      id: string;
+      title: string;
+      summary: string;
+      url: string;
+      source: string;
+      category: string;
+      publishedAt: string | null;
+      imageUrl?: string | null;
+    }>;
+    interests: string[];
+  },
+) {
+  const existing = await DailyEdition.findById(edition._id).lean();
+
+  if (existing?.briefing) return existing;
+
+  try {
+    const briefing = await generateAIBriefing(
+      edition.articles,
+      edition.interests,
+    );
+
+    // Only fill the briefing if another concurrent request hasn't already done it.
+    await DailyEdition.updateOne(
+      { _id: edition._id, briefing: { $exists: false } },
+      { $set: { briefing } },
+    );
+  } catch (error) {
+    // The newspaper must remain usable if the AI provider is unavailable.
+    console.error("[Paperly AI] Could not generate edition briefing:", error);
+  }
+
+  return DailyEdition.findById(edition._id).lean();
+}
+
 export async function GET() {
   try {
+    await connection();
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -31,7 +81,6 @@ export async function GET() {
 
     await connectToDatabase();
 
-    // Use Pakistan's calendar date consistently for daily editions.
     const editionDate = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Karachi",
       year: "numeric",
@@ -39,153 +88,134 @@ export async function GET() {
       day: "2-digit",
     }).format(new Date());
 
-    const existingEdition = await DailyEdition.findOne({
+    let edition = await DailyEdition.findOne({
       userId,
       editionDate,
-    }).lean();
+    });
 
-    if (existingEdition) {
-  const articles = existingEdition.articles ?? [];
-  const needsImages = articles.some(
-    (article) => !article.imageUrl,
-  );
+    let isNew = false;
 
-  if (needsImages) {
-    try {
-      const freshArticles = await fetchNews();
+    if (!edition) {
+      const user = await User.findById(userId)
+        .select("preferences")
+        .lean();
 
-      const freshByUrl = new Map(
-        freshArticles.map((article) => [
-          article.url,
-          article,
-        ]),
-      );
-
-      const enrichedArticles = articles.map((article) => {
-        if (article.imageUrl) return article;
-
-        const freshArticle = freshByUrl.get(article.url);
-
-        if (!freshArticle?.imageUrl) return article;
-
-        return {
-          ...article,
-          imageUrl: freshArticle.imageUrl,
-        };
-      });
-
-      const hasNewImages = enrichedArticles.some(
-        (article, index) =>
-          !articles[index].imageUrl && Boolean(article.imageUrl),
-      );
-
-      if (hasNewImages) {
-        await DailyEdition.updateOne(
-          { _id: existingEdition._id },
-          { $set: { articles: enrichedArticles } },
+      if (!user) {
+        return NextResponse.json(
+          { error: "User not found." },
+          { status: 404 },
         );
-
-        return NextResponse.json({
-          edition: {
-            ...existingEdition,
-            articles: enrichedArticles,
-          },
-          isNew: false,
-        });
       }
-    } catch (error) {
-      console.error("Unable to enrich saved edition images:", error);
-    }
-  }
 
-  return NextResponse.json({
-    edition: existingEdition,
-    isNew: false,
-  });
-}
+      const preferences = user.preferences;
 
-    const user = await User.findById(userId)
-      .select("preferences")
-      .lean();
+      if (!preferences?.onboardingCompleted) {
+        return NextResponse.json(
+          {
+            error: "Please complete onboarding first.",
+            redirect: "/onboarding",
+          },
+          { status: 409 },
+        );
+      }
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found." },
-        { status: 404 },
+      const allArticles = await fetchNews();
+
+      const articles = personalizeNews(
+        allArticles,
+        preferences.interests,
+        preferences.paperSize,
       );
-    }
 
-    const preferences = user.preferences;
+      if (articles.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              "No news articles could be retrieved. Please try again later.",
+          },
+          { status: 503 },
+        );
+      }
 
-    if (!preferences?.onboardingCompleted) {
-      return NextResponse.json(
-        {
-          error: "Please complete onboarding first.",
-          redirect: "/onboarding",
-        },
-        { status: 409 },
-      );
-    }
-
-    const allArticles = await fetchNews();
-
-    const articles = personalizeNews(
-      allArticles,
-      preferences.interests,
-      preferences.paperSize,
-    );
-
-    if (articles.length === 0) {
-      return NextResponse.json(
-        {
-          error:
-            "No news articles could be retrieved. Please try again later.",
-        },
-        { status: 503 },
-      );
-    }
-
-    const generatedAt = new Date();
-
-    try {
-      const edition = await DailyEdition.create({
-        userId,
-        editionDate,
-        title: "Your Daily Paper",
-        interests: preferences.interests,
-        articles,
-        generatedAt,
-      });
-
-      return NextResponse.json(
-        { edition, isNew: true },
-        { status: 201 },
-      );
-    } catch (error) {
-      // A parallel request may have created today's edition first.
-      if (
-        (error instanceof mongoose.Error &&
-          error.name === "ValidationError") ||
-        (typeof error === "object" &&
-          error !== null &&
-          "code" in error &&
-          error.code === 11000)
-      ) {
-        const edition = await DailyEdition.findOne({
+      try {
+        edition = await DailyEdition.create({
           userId,
           editionDate,
-        }).lean();
+          title: "Your Daily Paper",
+          interests: preferences.interests,
+          articles,
+          generatedAt: new Date(),
+        });
 
-        if (edition) {
-          return NextResponse.json({
-            edition,
-            isNew: false,
-          });
-        }
+        isNew = true;
+      } catch (error) {
+        if (!isDuplicateKey(error)) throw error;
+
+        // Another request may have created today's edition concurrently.
+        edition = await DailyEdition.findOne({ userId, editionDate });
+
+        if (!edition) throw error;
       }
-
-      throw error;
     }
+
+    // Preserve stored articles; only enrich missing images when a matching
+    // fresh RSS article is available.
+    const articles = edition.articles ?? [];
+
+    if (articles.some((article) => !article.imageUrl)) {
+      try {
+        const freshArticles = await fetchNews();
+        const freshByUrl = new Map(
+          freshArticles.map((article) => [article.url, article]),
+        );
+
+        const enriched = articles.map((article) => {
+          if (article.imageUrl) return article;
+
+          const fresh = freshByUrl.get(article.url);
+          return fresh?.imageUrl
+            ? { ...article.toObject(), imageUrl: fresh.imageUrl }
+            : article;
+        });
+
+        if (
+          enriched.some(
+            (article, index) =>
+              !articles[index].imageUrl && Boolean(article.imageUrl),
+          )
+        ) {
+          edition.articles = enriched as typeof edition.articles;
+          await edition.save();
+        }
+      } catch (error) {
+        console.error("[Paperly AI] Image enrichment failed:", error);
+      }
+    }
+
+    const savedEdition = await attachBriefing({
+      _id: edition._id,
+      articles: edition.articles.map((article) => {
+        const item = article.toObject();
+        return {
+          ...item,
+          publishedAt: item.publishedAt ?? null,
+          imageUrl: item.imageUrl ?? null,
+        };
+      }),
+      interests: edition.interests ?? [],
+    });
+
+    if (!savedEdition) {
+      return NextResponse.json(
+        { error: "Unable to load your saved edition." },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json(
+      { edition: savedEdition, isNew },
+      { status: isNew ? 201 : 200 },
+    );
   } catch (error) {
     console.error("GET /api/editions/today failed:", error);
 

@@ -21,6 +21,19 @@ import {
 
 import DashboardSidebar from "@/app/components/dashboard/DashboardSidebar";
 
+type Briefing = {
+  headline: string;
+  introduction: string;
+  keyThemes: string[];
+  summaries: Array<{
+    title: string;
+    summary: string;
+  }>;
+  provider?: string;
+  model?: string;
+  generatedAt?: string;
+};
+
 type Article = {
   id: string;
   title: string;
@@ -39,6 +52,7 @@ type Edition = {
   interests: string[];
   articles: Article[];
   generatedAt: string;
+  briefing?: Briefing | null;
 };
 
 type EditionResponse = {
