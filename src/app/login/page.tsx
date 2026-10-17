@@ -4,6 +4,9 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
 type AuthMode = "login" | "signup" | "forgot";
 
 export default function LoginPage() {
@@ -19,6 +22,9 @@ export default function LoginPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const router = useRouter();
+const [isSubmitting, setIsSubmitting] = useState(false);
 
   const passwordStrength = [
     password.length >= 8,
@@ -36,19 +42,23 @@ export default function LoginPage() {
     setConfirmPassword("");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setMessage("");
+  
+async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+  setError("");
+  setMessage("");
 
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
+  if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setError("Please enter a valid email address.");
+    return;
+  }
 
+  setIsSubmitting(true);
+
+  try {
     if (mode === "forgot") {
-      setMessage(
-        "The password reset form is ready. Connect an authentication backend to send a reset email.",
+      setError(
+        "Password recovery is not connected yet. We need to implement verified email reset tokens first.",
       );
       return;
     }
@@ -59,13 +69,16 @@ export default function LoginPage() {
         return;
       }
 
-      if (password.length < 8) {
-        setError("Your password must contain at least 8 characters.");
-        return;
-      }
-
-      if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
-        setError("Use at least one uppercase letter, one lowercase letter, and one number.");
+      if (
+        password.length < 8 ||
+        password.length > 72 ||
+        !/[A-Z]/.test(password) ||
+        !/[a-z]/.test(password) ||
+        !/\d/.test(password)
+      ) {
+        setError(
+          "Use 8–72 characters with an uppercase letter, a lowercase letter, and a number.",
+        );
         return;
       }
 
@@ -79,9 +92,30 @@ export default function LoginPage() {
         return;
       }
 
-      setMessage(
-        "Your form is valid! Connect the backend to create your account securely.",
-      );
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Unable to create your account.");
+        return;
+      }
+
+      setPassword("");
+      setConfirmPassword("");
+      setMessage("Account created! You can now sign in.");
+
+      changeMode("login");
+      setMessage("Account created! Please sign in with your new account.");
       return;
     }
 
@@ -90,10 +124,27 @@ export default function LoginPage() {
       return;
     }
 
-    setMessage(
-      "Your form is valid! Connect the backend to sign in securely.",
-    );
+    const result = await signIn("credentials", {
+      email: email.trim().toLowerCase(),
+      password,
+      redirect: false,
+      callbackUrl: "/dashboard",
+    });
+
+    if (!result || result.error) {
+      setError("Invalid email or password.");
+      return;
+    }
+
+    router.push(result.url || "/dashboard");
+    router.refresh();
+  } catch {
+    setError("A connection error occurred. Please try again.");
+  } finally {
+    setIsSubmitting(false);
   }
+}
+
 
   return (
     <main className="auth-page">
@@ -467,14 +518,16 @@ export default function LoginPage() {
               </div>
             )}
 
-            <button type="submit" className="auth-submit">
-              {mode === "signup"
-                ? "Create my account"
-                : mode === "forgot"
-                  ? "Continue"
-                  : "Sign in to Paperly"}
-              <span>↗</span>
-            </button>
+            <button type="submit" className="auth-submit" disabled={isSubmitting}>
+  {isSubmitting
+    ? "Please wait..."
+    : mode === "signup"
+      ? "Create my account"
+      : mode === "forgot"
+        ? "Continue"
+        : "Sign in to Paperly"}
+  {!isSubmitting && <span>↗</span>}
+</button>
 
             <p className="auth-secure-note">
               <span>◇</span> Your account details should always be handled
