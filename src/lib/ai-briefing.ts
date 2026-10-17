@@ -37,9 +37,10 @@ function validateBriefing(
   ) {
     throw new Error("The AI returned an incomplete briefing.");
   }
+  const rawSummaries = data.summaries as Array<unknown>;
 
   const summaries = articles.map((article, index) => {
-    const item = data.summaries[index];
+    const item = rawSummaries[index];
 
     const summary =
       item && typeof item === "object"

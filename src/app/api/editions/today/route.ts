@@ -174,8 +174,13 @@ export async function GET() {
 
           const fresh = freshByUrl.get(article.url);
           return fresh?.imageUrl
-            ? { ...article.toObject(), imageUrl: fresh.imageUrl }
-            : article;
+  ? {
+      ...(article as unknown as {
+        toObject: () => Record<string, unknown>;
+      }).toObject(),
+      imageUrl: fresh.imageUrl,
+    }
+  : article;
         });
 
         if (
@@ -195,7 +200,11 @@ export async function GET() {
     const savedEdition = await attachBriefing({
       _id: edition._id,
       articles: edition.articles.map((article) => {
-        const item = article.toObject();
+        const item = (
+  article as unknown as {
+    toObject: () => Record<string, unknown>;
+  }
+).toObject();
         return {
           ...item,
           publishedAt: item.publishedAt ?? null,
